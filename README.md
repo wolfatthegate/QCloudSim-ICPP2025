@@ -1,4 +1,4 @@
-# Quantum Cloud Simulation Environment for 54th ICPP  [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.15897774.svg)](https://doi.org/10.5281/zenodo.15897774)
+# Quantum Cloud Simulation Environment for 54th ICPP  [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.15897774.svg)](https://doi.org/10.5281/zenodo.15897774) 
 
 
 This **Quantum Cloud Simulation** repository is prepared to submitt to 54th ICPP conference [https://icpp2025.sdsc.edu/home]. It is designed for managing and simulating quantum computing workflows. The system simulates the orchestration of quantum jobs across multiple quantum devices, supporting dynamic job generation, resource allocation, and communication between quantum devices.
