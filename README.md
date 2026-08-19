@@ -15,7 +15,7 @@ This **Quantum Cloud Simulation** repository is prepared to submitt to 54th ICPP
 
 ## 🚀 **How to Run the Simulation**
 ### 1. **Set Up the Environment**
-Make sure you have Python (>=3.8) installed on your computer.
+Make sure you have Python (>=3.8) installed on your computer.... 
 
 Install the required libraries manually using `pip`:
 
