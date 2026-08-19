@@ -77,7 +77,6 @@ plt.legend(loc='upper left')
 plt.show()
 ```
 
-
 ⸻
 
 📊 Results and Analysis
@@ -90,7 +89,6 @@ Total Sim-time: 1203.45
 Fidelity: 0.9123 ± 0.0132
 Comm time: 45.32
 ```
-
 
 📄 License
 
