@@ -66,7 +66,7 @@ job_records = qcloudsimenv.job_records_manager.get_job_records()
 
 ⸻
 
-4. Plotting Results
+4. Plotting Results 
 
 You can visualize the fidelity distribution for different allocation modes using matplotlib:
 ```python
