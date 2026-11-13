@@ -3,6 +3,8 @@ from gymnasium import spaces
 import numpy as np
 import random
 
+from .rl_utils import MAX_DEVICES, build_observation, action_to_allocation
+
 class QCloudGymEnv(gym.Env):
     """
     An environment for quantum job allocation.
@@ -18,7 +20,7 @@ class QCloudGymEnv(gym.Env):
         self.job_records_manager = job_records_manager
         self.printlog = printlog
 
-        self.MAX_DEVICES = 5  # Maximum number of devices considered
+        self.MAX_DEVICES = MAX_DEVICES  # Maximum number of devices considered
         
         # Define the observation space: one job parameter plus for each device three features:
         # container level, error score, and CLOPS.
@@ -51,38 +53,14 @@ class QCloudGymEnv(gym.Env):
             "num_shots": random.randint(1000, 10000),
             "two_qubits": random.randint(5, 20)
         }
-        # Build the state vector.
-        # Normalize the job's num_qubits by 50.
-        state = [self.job["num_qubits"] / 50.0]
-        
-        # For each device (up to MAX_DEVICES), extract and normalize device features.
-        for i in range(self.MAX_DEVICES):
-            if i < len(self.devices):
-                device = self.devices[i]
-                # Normalize container level; adjust divisor from 100.0 to 150.0 to ensure value ≤1.
-                state.append(device.container.level / 127.0)
-                # Assuming device.error_score is already between 0 and 1.
-                state.append(device.error_score)
-                # Normalize CLOPS; adjust divisor based on its expected maximum value.
-                state.append(device.clops / 1e6)
-            else:
-                # Pad missing devices with zeros.
-                state.extend([0, 0, 0])
-                
-        return np.array(state, dtype=np.float32), {}
+        # Build the state vector (shared with QCloud.rl_allocate_large_job so that
+        # training and inference see identically normalised observations).
+        return build_observation(self.job["num_qubits"], self.devices, self.MAX_DEVICES), {}
 
     def step(self, action):
-        # Normalize the action to obtain allocation fractions.
-        allocation_ratios = action / (np.sum(action) + 1e-6)
-        allocations = []
-        total_qubits = self.job["num_qubits"]
-        for ratio in allocation_ratios:
-            allocated = int(round(ratio * total_qubits))
-            allocations.append(allocated)
-        # Adjust to ensure the total matches job["num_qubits"].
-        diff = total_qubits - sum(allocations)
-        allocations[0] += diff  # Simple correction
-        
+        # Convert the action into integer qubit counts per device.
+        allocations = action_to_allocation(action, self.job["num_qubits"])
+
         # Simulate the allocation by computing fidelities.
         fidelities = []
         for i, device in enumerate(self.devices[:self.MAX_DEVICES]):

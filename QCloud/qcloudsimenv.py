@@ -4,7 +4,7 @@ from QCloud import *
 from QCloud.job_generator import JobGenerator
 
 class QCloudSimEnv(simpy.Environment):
-    def __init__(self, devices, broker_class=ParallelBroker, job_feed_method='generator', job_generation_model=None, file_path=None, allocation_mode="simple", printlog=True):
+    def __init__(self, devices, broker_class=ParallelBroker, job_feed_method='generator', job_generation_model=None, file_path=None, allocation_mode="simple", printlog=True, rl_model_path=None):
         """
         Initialize the simulation environment.
 
@@ -14,6 +14,7 @@ class QCloudSimEnv(simpy.Environment):
         - job_feed_method: 'generator' for random job generation or 'dispatcher' for jobs from a CSV file.
         - job_generation_model: Callable for job inter-arrival times (used if method='generator').
         - file_path: Path to the .csv file containing predefined jobs (used if method='dispatcher').
+        - rl_model_path: Optional path to a trained PPO model (used if allocation_mode='rlbase').
         """
         super().__init__()  # Create the SimPy environment
         self.devices = devices
@@ -25,7 +26,8 @@ class QCloudSimEnv(simpy.Environment):
         self.event_bus = EventBus()  # Shared EventBus
         self.job_records_manager = JobRecordsManager(self.event_bus)  # Shared JobRecordsManager
         self.qcloud = QCloud(self, self.devices, self.job_records_manager, 
-                             allocation_mode = self.allocation_mode, printlog = printlog)
+                             allocation_mode = self.allocation_mode, printlog = printlog,
+                             rl_model_path = rl_model_path)
         self.job_generator = None
         self._initialize_devices()
         self._initialize_job_generator()
