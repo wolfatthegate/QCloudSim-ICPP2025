@@ -4,11 +4,16 @@ from QCloud.dependencies import *
 import numpy as np
 import random
 import math
-from stable_baselines3 import PPO  # Replace with PPO/SAC/TD3 if using continuous action spaces
+import os
+
+from QCloud.rl_utils import MAX_DEVICES, build_observation, action_to_allocation
+
+# Default trained policy shipped at the repository root (qcloud_ppo_model-new.zip).
+DEFAULT_RL_MODEL_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "qcloud_ppo_model-new")
 
 
 class QCloud:
-    def __init__(self, env, devices, job_records_manager, allocation_mode="fast", printlog=True):
+    def __init__(self, env, devices, job_records_manager, allocation_mode="fast", printlog=True, rl_model_path=None):
         """
         Initializes the QCloud class.
 
@@ -22,6 +27,8 @@ class QCloud:
         self.job_records_manager = job_records_manager
         # self.error_aware = False
         self.printlog = printlog
+        self.rl_model_path = rl_model_path or DEFAULT_RL_MODEL_PATH
+        self._rl_model = None  # loaded lazily, once, on first RL allocation
 
         # Mapping strategies to functions
         self.allocation_strategies = {
@@ -35,7 +42,16 @@ class QCloud:
         if allocation_mode in self.allocation_strategies:
             self.allocation_function = self.allocation_strategies[allocation_mode]
         else:
-            raise ValueError(f"Invalid allocation mode: {allocation_mode}. Choose from {list(self.allocation_strategies.keys())}.")        
+            raise ValueError(f"Invalid allocation mode: {allocation_mode}. Choose from {list(self.allocation_strategies.keys())}.")
+
+    @property
+    def rl_model(self):
+        """Load the trained PPO policy once and reuse it for every job."""
+        if self._rl_model is None:
+            # Imported here so the heuristic modes don't require torch / stable-baselines3.
+            from stable_baselines3 import PPO
+            self._rl_model = PPO.load(self.rl_model_path)
+        return self._rl_model
 
     def allocate_job(self, job, devices):
         """
@@ -348,43 +364,22 @@ class QCloud:
         self.job_records_manager.log_job_event(job.job_id, 'fidelity', round(final_fidelity, 4))
         
     def rl_allocate_large_job(self, job, devices):
-        MAX_DEVICES = 5
-        # Construct the state vector similar to the one used in your Gym environment.
-        # Ensure the normalization factors here match those in the training environment.
-        state = [job.num_qubits / 50.0]
-        for i in range(MAX_DEVICES):
-            if i < len(devices):
-                device = devices[i]
-                # Adjust normalization: using 150.0 instead of 100.0 if needed.
-                state.append(device.container.level / 150.0)
-                state.append(device.error_score)
-                state.append(device.clops / 1e6)  # Adjust based on maximum expected value.
-            else:
-                state.extend([0, 0, 0])
-        state = np.array(state, dtype=np.float32)
+        devices = devices[:MAX_DEVICES]
 
-        # Load your trained RL model.
-        # Consider loading this once (e.g., during __init__) and reusing it for performance.
-        model = PPO.load("qcloud_ppo_model-new")
+        # Same observation encoding as QCloudGymEnv (see QCloud/rl_utils.py).
+        state = build_observation(job.num_qubits, devices, MAX_DEVICES)
 
-        # Get the agent's action.
-        action, _ = model.predict(state, deterministic=True)
+        # Get the agent's action from the cached policy.
+        action, _ = self.rl_model.predict(state, deterministic=True)
 
-        # Normalize action into allocation ratios.
-        allocation_ratios = action / (np.sum(action) + 1e-6)
-
-        allocations = []
-        for ratio in allocation_ratios:
-            allocated = int(round(ratio * job.num_qubits))
-            allocations.append(allocated)
-
-        # Adjust to ensure total allocation equals job.num_qubits.
-        diff = job.num_qubits - sum(allocations)
-        allocations[0] += diff  # simple correction for rounding
+        # Convert to integer qubit counts; never ask a device for more qubits than it has
+        # (that request could never be satisfied and the job would wait forever).
+        allocations = action_to_allocation(action[:len(devices)], job.num_qubits,
+                                           capacities=[d.number_of_qubits for d in devices])
 
         # Now follow the steps of allocation: request resources, etc.
         allocated_devices = []
-        for idx, device in enumerate(devices[:MAX_DEVICES]):
+        for idx, device in enumerate(devices):
             allocated_qubits = allocations[idx]
             if allocated_qubits > 0:
                 # For asynchronous operation in a simulation, consider yielding this request.

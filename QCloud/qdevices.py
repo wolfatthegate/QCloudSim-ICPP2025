@@ -1,6 +1,6 @@
 #qdevices.py
 
-# from utility_functions.graph_manipulation import *
+from QCloud.graph_functions import select_vertices_fast, remove_connectivity, reconnect_nodes
 import networkx as nx
 import simpy
 import json
@@ -128,9 +128,8 @@ class QuantumDevice(BaseQDevice):
         self.container = simpy.Container(env=env, capacity=len(self.pos), init=len(self.pos))
         self.resource = simpy.PriorityResource(env=env, capacity=1)
 
-        # Start maintenance process if required
-        if self.maintenance_switch:
-            self.env.process(self.maintenance())
+        # The maintenance process is started by QCloudSimEnv._initialize_devices();
+        # starting it here as well would run two maintenance loops per device.
             
     def load_topology(self, nodes_file_name, pos_file_name):
         
@@ -150,7 +149,7 @@ class QuantumDevice(BaseQDevice):
         
         return nodes, pos
     
-    def maintenance(self, maintenance_switch):
+    def maintenance(self, maintenance_switch=None):
         """
         Maintenance process that will run at regular intervals.
         The interval and duration of maintenance are set by the child class.
@@ -243,7 +242,7 @@ class IBM_QuantumDevice(QuantumDevice):
     """
 
     def __init__(self, name, nodes_file_name, pos_file_name, env, maintenance_interval, maintenance_duration, maintenance_switch, clops, qvol, median_T1, median_T2, processor_type, cali_filepath=None, printlog=True):
-        super().__init__(name, nodes_file_name, pos_file_name, env, maintenance_interval, maintenance_duration, maintenance_switch, printlog)
+        super().__init__(name, nodes_file_name, pos_file_name, env, maintenance_interval, maintenance_duration, maintenance_switch, printlog=printlog)
         
         # IBM-specific attributes
         self.clops = clops  # Circuit Layer Operations Per Second
@@ -307,10 +306,16 @@ class IBM_QuantumDevice(QuantumDevice):
         Extract errors specific to IBM devices from calibration data.
         """
         # file_path = 'QCloud/calibration/ibm_fez_calibrations_2025-01-13T16_54_24Z.csv'
-        if self.cali_filepath is None: 
-            self.cali_filepath = 'QCloud/calibration/ibm_fez_calibrations_2025-01-13T16_54_24Z.csv'
-            
+        package_dir = os.path.dirname(os.path.abspath(__file__))
+        if self.cali_filepath is None:
+            self.cali_filepath = os.path.join(package_dir, 'calibration', '01_2025', 'ibm_fez_calibrations_2025-01-13T16_54_24Z.csv')
+
         file_path = self.cali_filepath
+        if not os.path.isabs(file_path) and not os.path.exists(file_path):
+            # Allow 'QCloud/calibration/...' paths to work from any working directory.
+            candidate = os.path.join(os.path.dirname(package_dir), file_path)
+            if os.path.exists(candidate):
+                file_path = candidate
         calibration_data = pd.read_csv(file_path)
         calibration_data.columns = calibration_data.columns.str.strip()
 

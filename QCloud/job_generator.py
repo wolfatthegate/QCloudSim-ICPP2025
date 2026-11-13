@@ -124,7 +124,9 @@ class JobGenerator:
                 priority = random.randint(1, 2)
                 
                 # For job generator, self.job_id is assigned to QJob
-                job = QJob(self.job_id, num_qubits, depth, num_shots, priority, arrival_time) 
+                job = QJob(job_id=self.job_id, num_qubits=num_qubits, two_qubits=two_qubits,
+                           depth=depth, num_shots=num_shots, priority=priority,
+                           arrival_time=arrival_time)
                 
                 # Log job arrival
                 self.job_records_manager.log_job_event(self.job_id, 'arrival', round(self.env.now, 2))

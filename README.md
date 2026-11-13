@@ -17,11 +17,25 @@ This **Quantum Cloud Simulation** repository is prepared to submitt to 54th ICPP
 ### 1. **Set Up the Environment**
 Make sure you have Python (>=3.8) installed on your computer.... 
 
-Install the required libraries manually using `pip`:
+Install the required libraries using `pip`:
 
 ```bash
-pip install numpy matplotlib
+pip install -r requirements.txt
 ```
+
+Run the tests from the repository root:
+
+```bash
+python -m pytest -q
+```
+
+To retrain the PPO policy used by the `rlbase` allocation mode (training curves are logged to `<out>_logs/progress.csv`):
+
+```bash
+python train_ppo.py --timesteps 100000 --seed 0 --out qcloud_ppo_model-retrained
+```
+
+and pass `rl_model_path="qcloud_ppo_model-retrained"` to `QCloudSimEnv`. By default the shipped `qcloud_ppo_model-new.zip` is used.
 
 
 ⸻

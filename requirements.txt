@@ -1,0 +1,11 @@
+simpy
+networkx
+numpy
+pandas
+matplotlib
+# RL allocation mode ('rlbase') and training
+gymnasium
+stable-baselines3
+torch
+# tests
+pytest

@@ -86,7 +86,10 @@ def select_vertices_fast(device, N, name):
     graph = device.graph
     color_map = device.color_map
     # Filter the nodes by color ('skyblue') and create a list of candidate nodes
-    candidate_nodes = [node for node in graph.nodes if color_map[list(graph.nodes).index(node)] == 'skyblue']
+    # color_map is indexed by position in graph.nodes; enumerate once instead of
+    # calling list(graph.nodes).index() per node (which was O(n^2)).
+    candidate_nodes = [node for i, node in enumerate(graph.nodes) if color_map[i] == 'skyblue']
+    candidate_set = set(candidate_nodes)  # O(1) membership tests; list keeps iteration order
 
     if len(candidate_nodes) < N:
 #         print(f"Not enough 'skyblue' nodes to form a subgraph of {N} nodes.")
@@ -94,15 +97,15 @@ def select_vertices_fast(device, N, name):
 
     # Try to find a connected subgraph of size N using BFS or DFS
     for start_node in candidate_nodes:
-        # Perform BFS or DFS starting from the current node
-        connected_nodes = list(nx.bfs_edges(graph, start_node))  # You could also use dfs_edges if preferred
+        # Walk the BFS lazily and stop as soon as N nodes are collected,
+        # instead of materialising the whole traversal first.
         subgraph_nodes = set([start_node])  # Start with the initial node
-        
-        for edge in connected_nodes:
+
+        for edge in nx.bfs_edges(graph, start_node):  # You could also use dfs_edges if preferred
             if len(subgraph_nodes) >= N:
                 break
             # Add both nodes from the edge if they meet the 'skyblue' criteria
-            if edge[1] in candidate_nodes:
+            if edge[1] in candidate_set:
                 subgraph_nodes.add(edge[1])
 
         # If we have a connected subgraph of N nodes, return it
